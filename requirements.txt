@@ -1,0 +1,10 @@
+﻿# Core packages for Day 1
+pandas>=1.5.0
+python-dotenv>=0.19.0
+psycopg2-binary>=2.9.0
+spotipy>=2.22.0
+
+# We'll add more packages in later days
+# streamlit (Day 8)
+# scikit-learn (Day 15)
+# plotly (Day 11)

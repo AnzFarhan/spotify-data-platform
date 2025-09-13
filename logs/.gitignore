@@ -205,3 +205,22 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Environment files
+.env
+
+# Data files (never commit personal data!)
+data/
+*.csv
+*.json
+
+# Logs
+logs/
+*.log
+
+# Database files
+*.db
+*.sqlite3
+
+# Spotify cache
+.spotify_cache
