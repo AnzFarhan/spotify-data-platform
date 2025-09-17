@@ -15,7 +15,7 @@ class DatabaseConfig:
         self.port = os.getenv('POSTGRES_PORT', '5432')
         self.database = os.getenv('POSTGRES_DB', 'spotify_data')
         self.user = os.getenv('POSTGRES_USER', 'postgres')
-        self.password = os.getenv('POSTGRES_PASSWORD', '')
+        self.password = os.getenv('POSTGRES_PASSWORD', 'admin0125')
     
     def get_connection_string(self):
         """Get database connection string"""
