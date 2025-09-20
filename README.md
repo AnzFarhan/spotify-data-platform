@@ -31,14 +31,14 @@ A comprehensive data platform showcasing **Data Engineering**, **Analytics**, an
 
 ## 🚀 Current Status: Day 2 ✅
 
-# 1. Configure credentials 
+### 1. Configure credentials 
 - cp .env.example .env
-# Edit .env with your Spotify API and PostgreSQL credentials
+#### Edit .env with your Spotify API and PostgreSQL credentials
 
-# 2. Setup database 
+### 2. Setup database 
 - python sql\scripts\setup_database.py
 
-# 3. Test everything works 
+### 3. Test everything works 
 - python tests\test_day2.py
 - python DE\spotify_extractor.py
 
@@ -52,12 +52,12 @@ A comprehensive data platform showcasing **Data Engineering**, **Analytics**, an
 - 🔗 **Connections**: All systems tested and working
 - 📊 **Data**: Can extract and save listening data
 
-🎯 Success Metrics
-Day 2 Achievements:
-🎵 Successfully connected to Spotify API
-🗄️ PostgreSQL database operational with 5 tables
-📊 Can extract and save real listening data
-🧪 All tests passing
+## 🎯 Success Metrics
+### Day 2 Achievements:
+- 🎵 Successfully connected to Spotify API
+- 🗄️ PostgreSQL database operational with 5 tables
+- 📊 Can extract and save real listening data
+- 🧪 All tests passing
 
 *********************************************************************************************
 
@@ -74,13 +74,13 @@ Day 2 Achievements:
 *********************************************************************************************
 
 ## 📁 Project Structure
-potify-data-platform/
-├── DE/     # Week 1: ETL pipelines
-├── DA/       # Week 2: Analysis & dashboards
-├── DS/         # Week 3: ML models
-├── config/              # Configuration management
-├── tests/               # Testing suite
-└── docs/                # Documentation
+- potify-data-platform/
+- ├── DE/     # Week 1: ETL pipelines
+- ├── DA/       # Week 2: Analysis & dashboards
+- ├── DS/         # Week 3: ML models
+- ├── config/              # Configuration management
+- ├── tests/               # Testing suite
+- └── docs/                # Documentation
 
 -- Progress Tracking --
 
