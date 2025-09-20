@@ -210,7 +210,7 @@ def test_extractor():
     
     if extractor.sp:
         # Get recent tracks
-        df = extractor.get_recent_tracks(limit=20)
+        df = extractor.get_recent_tracks(limit=10)
         
         if df is not None and not df.empty:
             print(f"✅ Successfully extracted {len(df)} tracks")
