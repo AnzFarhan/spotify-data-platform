@@ -33,7 +33,7 @@ A comprehensive data platform showcasing **Data Engineering**, **Analytics**, an
 
 ### 1. Configure credentials 
 - cp .env.example .env
-#### Edit .env with your Spotify API and PostgreSQL credentials
+#### **Edit .env with your Spotify API and PostgreSQL credentials**
 
 ### 2. Setup database 
 - python sql\scripts\setup_database.py
