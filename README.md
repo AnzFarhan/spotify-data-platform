@@ -14,6 +14,12 @@ A comprehensive data platform showcasing **Data Engineering**, **Analytics**, an
 
 ## 🚀 Current Status: Day 1 ✅
 
+- git clone https://github.com/YOUR_USERNAME/spotify-data-platform.git
+- cd spotify-data-platform
+- python -m venv venv
+- source venv/bin/activate
+- pip install -r requirements.txt
+
 ### Completed:
 - ✅ GitHub repository created
 - ✅ Project structure established  
@@ -24,6 +30,17 @@ A comprehensive data platform showcasing **Data Engineering**, **Analytics**, an
 *********************************************************************************************
 
 ## 🚀 Current Status: Day 2 ✅
+
+# 1. Configure credentials 
+- cp .env.example .env
+# Edit .env with your Spotify API and PostgreSQL credentials
+
+# 2. Setup database 
+- python sql\scripts\setup_database.py
+
+# 3. Test everything works 
+- python tests\test_day2.py
+- python DE\spotify_extractor.py
 
 ### Completed:
 - ✅ **Day 1:** Environment setup, project structure
