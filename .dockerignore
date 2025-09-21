@@ -1,0 +1,64 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+
+# Data files (personal data should not be in image)
+data/raw/
+data/processed/
+*.csv
+*.json
+*.parquet
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Spotify cache
+.spotify_cache
+.cache-*
+
+# Logs
+logs/*.log
+
+# Environment file (will be mounted as volume)
+.env
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*
+
+# Documentation
+README.md
+docs/
+*.md
