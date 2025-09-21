@@ -10,7 +10,13 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Union
 import os
+import certifi
+import requests
 from dotenv import load_dotenv
+
+# Configure SSL certificates
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+requests.utils.DEFAULT_CA_BUNDLE_PATH = certifi.where()
 
 load_dotenv()
 
@@ -26,8 +32,8 @@ class SpotifyExtractorV2:
         self.client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
         self.redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI', 'https://datapotipy.com/callback')
         
-        # Enhanced scopes for more data
-        self.scope = "user-read-recently-played user-read-playback-state user-top-read user-library-read playlist-read-private"
+        # Enhanced scopes for more data - reduced to essential scopes
+        self.scope = "user-read-recently-played user-read-private"
         
         self.sp = None
         self.max_retries = 3
@@ -38,29 +44,32 @@ class SpotifyExtractorV2:
     def _setup_spotify(self):
         """Set up Spotify client with error handling"""
         try:
+            # Configure session with proper SSL certificates
+            session = requests.Session()
+            session.verify = certifi.where()
+            
+            # Clear any existing cached token
+            if os.path.exists('.spotify_cache'):
+                os.remove('.spotify_cache')
+            
+            # Create OAuth manager with all required scopes
             sp_oauth = SpotifyOAuth(
                 client_id=self.client_id,
                 client_secret=self.client_secret,
                 redirect_uri=self.redirect_uri,
                 scope=self.scope,
-                cache_path='.spotify_cache'
+                cache_path='.spotify_cache',
+                requests_session=session,
+                open_browser=False,  # Prevent automatic browser opening
+                show_dialog=True    # Force re-consent to ensure proper scopes
             )
             
-            token_info = sp_oauth.get_cached_token()
-            if not token_info or sp_oauth.is_token_expired(token_info):
-                if token_info:
-                    # Refresh expired token
-                    token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
-                else:
-                    # Need new authentication
-                    logger.warning("Authentication required")
-                    auth_url = sp_oauth.get_authorize_url()
-                    logger.info(f"Visit: {auth_url}")
-                    response = input("Paste redirect URL: ")
-                    code = sp_oauth.parse_response_code(response)
-                    token_info = sp_oauth.get_access_token(code)
+            # Create Spotify client with OAuth manager
+            self.sp = spotipy.Spotify(auth_manager=sp_oauth)
             
-            self.sp = spotipy.Spotify(auth=token_info['access_token'])
+            # Test connection by getting current user
+            user = self.sp.current_user()
+            logger.info(f"✅ Connected as: {user.get('display_name', 'Unknown user')}")
             logger.info("✅ Spotify client initialized successfully")
             
         except Exception as e:
@@ -71,10 +80,19 @@ class SpotifyExtractorV2:
         """Make API call with retry logic and rate limiting"""
         for attempt in range(self.max_retries):
             try:
-                # Rate limiting - Spotify allows 100 requests per minute
-                time.sleep(0.6)  # ~100 requests per minute
+                # Ensure token is fresh before each API call
+                if hasattr(self.sp, 'auth_manager'):
+                    token_info = self.sp.auth_manager.get_cached_token()
+                    if token_info and self.sp.auth_manager.is_token_expired(token_info):
+                        logger.debug("Token expired, refreshing...")
+                        token_info = self.sp.auth_manager.refresh_access_token(token_info['refresh_token'])
+                        self.sp = spotipy.Spotify(auth=token_info['access_token'])
                 
                 result = api_func(*args, **kwargs)
+                
+                # Rate limiting - conservative approach
+                time.sleep(0.1)  # Small delay between successful requests
+                
                 return result
                 
             except spotipy.exceptions.SpotifyException as e:
@@ -82,9 +100,21 @@ class SpotifyExtractorV2:
                     retry_after = int(e.headers.get('Retry-After', 60))
                     logger.warning(f"Rate limited. Waiting {retry_after} seconds...")
                     time.sleep(retry_after)
-                elif e.http_status == 401:  # Unauthorized
-                    logger.error("Token expired. Please re-authenticate.")
+                    continue
+                elif e.http_status == 401:  # Token expired
+                    if hasattr(self.sp, 'auth_manager') and attempt < self.max_retries - 1:
+                        try:
+                            logger.info("Token expired during request, refreshing...")
+                            token_info = self.sp.auth_manager.refresh_access_token(token_info['refresh_token'])
+                            self.sp = spotipy.Spotify(auth=token_info['access_token'])
+                            continue
+                        except Exception as refresh_error:
+                            logger.error(f"Failed to refresh token: {refresh_error}")
                     raise
+                elif e.http_status == 403:  # Forbidden - might need scope adjustment
+                    logger.error(f"Access forbidden to endpoint. Scope issue? Error: {e}")
+                    if attempt == self.max_retries - 1:
+                        raise
                 else:
                     logger.warning(f"API error (attempt {attempt + 1}): {e}")
                     if attempt == self.max_retries - 1:
@@ -175,16 +205,32 @@ class SpotifyExtractorV2:
         try:
             all_features = []
             
-            # Process in batches of 100 (API limit)
-            for i in range(0, len(track_ids), 100):
-                batch_ids = track_ids[i:i+100]
-                
-                features = self._make_api_call(self.sp.audio_features, batch_ids)
-                
-                if features:
-                    # Filter out None responses
-                    valid_features = [f for f in features if f is not None]
-                    all_features.extend(valid_features)
+            # Try using tracks API endpoint instead of audio-features
+            for track_id in track_ids:
+                try:
+                    track = self._make_api_call(self.sp.track, track_id)
+                    if track:
+                        features = {
+                            'id': track['id'],
+                            'popularity': track['popularity'],
+                            'duration_ms': track['duration_ms'],
+                            'explicit': int(track['explicit']),
+                            'preview_url': 1 if track.get('preview_url') else 0,
+                            'external_urls': track.get('external_urls', {}).get('spotify', ''),
+                            'available_markets': len(track.get('available_markets', [])),
+                            'track_href': track.get('href', ''),
+                            'album_type': track['album'].get('album_type', ''),
+                            'total_tracks': track['album'].get('total_tracks', 0)
+                        }
+                        all_features.append(features)
+                        logger.debug(f"Got track data for {track_id}")
+                    time.sleep(0.2)  # Small delay between requests
+                except Exception as track_error:
+                    logger.warning(f"Failed to get track data for {track_id}: {track_error}")
+                    continue
+                except Exception as e:
+                    logger.warning(f"Failed to get features for track {track_id}: {e}")
+                    continue
             
             if not all_features:
                 logger.warning("No audio features retrieved")
@@ -195,9 +241,9 @@ class SpotifyExtractorV2:
             
             # Keep only relevant columns
             feature_columns = [
-                'id', 'danceability', 'energy', 'key', 'loudness', 'mode',
-                'speechiness', 'acousticness', 'instrumentalness', 'liveness',
-                'valence', 'tempo', 'time_signature'
+                'id', 'popularity', 'duration_ms', 'explicit', 'preview_url',
+                'external_urls', 'available_markets', 'track_href',
+                'album_type', 'total_tracks'
             ]
             
             df = df[feature_columns].rename(columns={'id': 'track_id'})
@@ -282,9 +328,15 @@ def test_enhanced_extractor():
             available_cols = [col for col in sample_cols if col in df.columns]
             print(df[available_cols].head(3).to_string(index=False))
             
+            # Create data directory if it doesn't exist
+            import os
+            data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+            os.makedirs(data_dir, exist_ok=True)
+            
             # Save test data
-            df.to_csv('day3_enhanced_extraction_test.csv', index=False)
-            print(f"\n💾 Saved test data to: day3_enhanced_extraction_test.csv")
+            output_file = os.path.join(data_dir, 'day3_enhanced_extraction_test.csv')
+            df.to_csv(output_file, index=False)
+            print(f"\n💾 Saved test data to: {output_file}")
             
             return True
         else:
