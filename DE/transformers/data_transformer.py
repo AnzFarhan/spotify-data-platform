@@ -37,23 +37,30 @@ class SpotifyDataTransformer:
         logger.info("Cleaning text fields...")
         
         text_columns = ['track_name', 'artist_name', 'album_name']
+        df_cleaned = df.copy()
         
         for col in text_columns:
-            if col in df.columns:
+            if col in df_cleaned.columns:
+                # Handle None values first
+                df_cleaned[col] = df_cleaned[col].fillna('')
+                
+                # Convert to string type
+                df_cleaned[col] = df_cleaned[col].astype(str)
+                
                 # Remove extra whitespace
-                df[col] = df[col].str.strip()
+                df_cleaned[col] = df_cleaned[col].str.strip()
                 
                 # Remove special characters that cause database issues
-                df[col] = df[col].str.replace(r'[^\w\s\-\'\(\)\&]', '', regex=True)
+                df_cleaned[col] = df_cleaned[col].str.replace(r'[^\w\s\-\'\(\)\&]', '', regex=True)
                 
                 # Limit length to prevent database issues
                 max_length = 200 if col != 'track_name' else 300
-                df[col] = df[col].str[:max_length]
+                df_cleaned[col] = df_cleaned[col].str[:max_length]
                 
                 # Handle empty strings
-                df[col] = df[col].replace('', np.nan)
+                df_cleaned[col] = df_cleaned[col].replace('', np.nan)
         
-        return df
+        return df_cleaned
     
     def normalize_timestamps(self, df: pd.DataFrame) -> pd.DataFrame:
         """Normalize timestamp formats"""
@@ -266,20 +273,31 @@ class SpotifyDataTransformer:
         if df.empty:
             return df, {}
         
-        # Apply all transformations
-        df = self.clean_text_fields(df)
-        df = self.normalize_timestamps(df)
-        df = self.normalize_audio_features(df)
-        df = self.create_derived_features(df)
-        df = self.handle_missing_values(df)
-        df = self.remove_duplicates(df)
-        
-        # Final validation
-        df, quality_report = self.validate_data_quality(df)
-        
-        logger.info(f"✅ Transformation complete: {len(df)} rows")
-        
-        return df, quality_report
+        try:
+            # Ensure required columns exist
+            required_columns = ['track_id', 'track_name']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                raise ValueError(f"Missing required columns: {missing_columns}")
+            
+            # Apply all transformations
+            df = self.clean_text_fields(df)
+            df = self.normalize_timestamps(df)
+            df = self.normalize_audio_features(df)
+            df = self.create_derived_features(df)
+            df = self.handle_missing_values(df)
+            df = self.remove_duplicates(df)
+            
+            # Final validation
+            df, quality_report = self.validate_data_quality(df)
+            
+            logger.info(f"✅ Transformation complete: {len(df)} rows")
+            
+            return df, quality_report
+            
+        except Exception as e:
+            logger.error(f"Error during transformation: {str(e)}")
+            raise
 
 def test_transformer():
     """Test the data transformer"""
@@ -289,9 +307,9 @@ def test_transformer():
     # Create sample data
     sample_data = {
         'track_id': ['1', '2', '3', '1'],  # Include duplicate
-        'track_name': ['  Song One  ', 'Song Two!@#', ''],
-        'artist_name': ['Artist A', 'Artist B & C', 'Artist C'],
-        'album_name': ['Album 1', 'Album 2', 'Album 3'],
+        'track_name': ['  Song One  ', 'Song Two!@#', '', 'Song One'],
+        'artist_name': ['Artist A', 'Artist B & C', 'Artist C', 'Artist A'],
+        'album_name': ['Album 1', 'Album 2', 'Album 3', 'Album 1'],
         'played_at': ['2024-01-15T10:30:00Z', '2024-01-15T11:00:00Z', '2024-01-15T12:00:00Z', '2024-01-15T10:30:00Z'],
         'duration_ms': [210000, 180000, 240000, 210000],
         'popularity': [75, 60, np.nan, 75],
