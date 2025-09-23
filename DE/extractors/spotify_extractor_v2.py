@@ -32,8 +32,8 @@ class SpotifyExtractorV2:
         self.client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
         self.redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI', 'https://datapotipy.com/callback') 
         
-        # Enhanced scopes for more data - reduced to essential scopes
-        self.scope = "user-read-recently-played user-read-private"
+        # Enhanced scopes for more data including audio features
+        self.scope = "user-read-recently-played user-read-private user-read-email playlist-read-collaborative playlist-read-private"
         
         self.sp = None
         self.max_retries = 3
@@ -196,40 +196,28 @@ class SpotifyExtractorV2:
             return pd.DataFrame()
     
     def extract_audio_features(self, track_ids: List[str]) -> pd.DataFrame:
-        """Extract audio features for tracks"""
+        """Extract audio features for tracks using the audio-features endpoint"""
         if not track_ids:
             return pd.DataFrame()
         
         logger.info(f"Getting audio features for {len(track_ids)} tracks...")
         
         try:
+            # Get audio features in batches of 50 tracks (API limit)
+            batch_size = 50
             all_features = []
             
-            # Try using tracks API endpoint instead of audio-features
-            for track_id in track_ids:
+            for i in range(0, len(track_ids), batch_size):
+                batch_ids = track_ids[i:i + batch_size]
                 try:
-                    track = self._make_api_call(self.sp.track, track_id)
-                    if track:
-                        features = {
-                            'id': track['id'],
-                            'popularity': track['popularity'],
-                            'duration_ms': track['duration_ms'],
-                            'explicit': int(track['explicit']),
-                            'preview_url': 1 if track.get('preview_url') else 0,
-                            'external_urls': track.get('external_urls', {}).get('spotify', ''),
-                            'available_markets': len(track.get('available_markets', [])),
-                            'track_href': track.get('href', ''),
-                            'album_type': track['album'].get('album_type', ''),
-                            'total_tracks': track['album'].get('total_tracks', 0)
-                        }
-                        all_features.append(features)
-                        logger.debug(f"Got track data for {track_id}")
-                    time.sleep(0.2)  # Small delay between requests
-                except Exception as track_error:
-                    logger.warning(f"Failed to get track data for {track_id}: {track_error}")
-                    continue
-                except Exception as e:
-                    logger.warning(f"Failed to get features for track {track_id}: {e}")
+                    features = self._make_api_call(self.sp.audio_features, batch_ids)
+                    if features:
+                        # Filter out None values and add to collection
+                        valid_features = [f for f in features if f]
+                        all_features.extend(valid_features)
+                    time.sleep(0.2)  # Small delay between batches
+                except Exception as batch_error:
+                    logger.warning(f"Failed to get audio features for batch: {batch_error}")
                     continue
             
             if not all_features:
@@ -239,11 +227,11 @@ class SpotifyExtractorV2:
             # Convert to DataFrame
             df = pd.DataFrame(all_features)
             
-            # Keep only relevant columns
+            # Keep only audio analysis features
             feature_columns = [
-                'id', 'popularity', 'duration_ms', 'explicit', 'preview_url',
-                'external_urls', 'available_markets', 'track_href',
-                'album_type', 'total_tracks'
+                'id', 'danceability', 'energy', 'key', 'loudness', 'mode',
+                'speechiness', 'acousticness', 'instrumentalness', 'liveness',
+                'valence', 'tempo', 'time_signature'
             ]
             
             df = df[feature_columns].rename(columns={'id': 'track_id'})
@@ -328,13 +316,13 @@ def test_enhanced_extractor():
             available_cols = [col for col in sample_cols if col in df.columns]
             print(df[available_cols].head(3).to_string(index=False))
             
-            # Create data directory if it doesn't exist
+            # Create data directory in current directory for testing
             import os
-            data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+            data_dir = os.path.join(os.path.dirname(__file__), 'data')
             os.makedirs(data_dir, exist_ok=True)
             
             # Save test data
-            output_file = os.path.join(data_dir, 'day3_enhanced_extraction_test.csv')
+            output_file = os.path.join(data_dir, 'test_output.csv')
             df.to_csv(output_file, index=False)
             print(f"\n💾 Saved test data to: {output_file}")
             
