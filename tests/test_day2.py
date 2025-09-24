@@ -64,36 +64,55 @@ def test_spotify_api():
     try:
         spotify_config = SpotifyConfig()
         
-        # Create OAuth object
+        # Ensure we have the credentials
+        if not spotify_config.client_id or not spotify_config.client_secret:
+            print("❌ Missing Spotify credentials in .env file")
+            print("💡 Make sure SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET are set")
+            return False
+            
+        # Create OAuth object with all required scopes
         sp_oauth = SpotifyOAuth(
             client_id=spotify_config.client_id,
             client_secret=spotify_config.client_secret,
             redirect_uri=spotify_config.redirect_uri,
-            scope="user-read-recently-played"
+            scope=spotify_config.scopes,  # Use all scopes from config
+            cache_path=".spotify_cache",  # Specify cache file
+            show_dialog=True  # Force login dialog
         )
         
-        # Check if we have a cached token
-        token_info = sp_oauth.get_cached_token()
+        # Clear any existing token
+        cache_path = ".spotify_cache"
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
+            print("🔄 Cleared existing token cache")
         
-        if not token_info:
-            print("🔐 Authentication required!")
-            print(f"👉 Please visit: {sp_oauth.get_authorize_url()}")
-            print("   Complete authentication and run this test again")
-            return False
+        # Get new token
+        print("🔐 Starting authentication...")
+        auth_url = sp_oauth.get_authorize_url()
+        print(f"👉 Please visit: {auth_url}")
+        print("After authorizing, copy the URL you were redirected to")
+        response = input("Paste the URL here: ").strip()
+        
+        # Exchange code for token
+        code = sp_oauth.parse_response_code(response)
+        token_info = sp_oauth.get_access_token(code, as_dict=True)
         
         # Test API call
         sp = spotipy.Spotify(auth=token_info['access_token'])
         user = sp.current_user()
         
-        print(f"✅ Spotify API connection successful!")
+        print(f"\n✅ Spotify API connection successful!")
         print(f"   User: {user.get('display_name', 'Unknown')}")
         print(f"   Country: {user.get('country', 'Unknown')}")
+        print(f"   Product: {user.get('product', 'Unknown')}")
         
         return True
         
     except Exception as e:
         print(f"❌ Spotify API connection failed: {e}")
         print("💡 Make sure you've set up your API credentials correctly")
+        if "invalid_grant" in str(e):
+            print("🔑 The authorization code was invalid or expired. Please try again.")
         return False
 
 def run_day2_tests():
