@@ -1,5 +1,5 @@
 """
-Day 3: Data Transformation Pipeline
+Data Transformation Pipeline
 Features: Data cleaning, normalization, feature engineering
 """
 import pandas as pd
