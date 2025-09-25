@@ -13,7 +13,7 @@ A comprehensive data platform showcasing **Data Engineering**, **Analytics**, an
 - Production-ready monitoring and logging
 
 ## 🏗️ Architecture
-- 
+assets/Architucture_Spotfiy_Data_Platform.drawio.png
 
 ## 🚀 Features
 ### ✅ Data Extraction
