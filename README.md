@@ -2,7 +2,6 @@
 
 A comprehensive data platform showcasing **Data Engineering**, **Analytics**, and **Data Science** skills using Spotify listening data.
 
-<<<<<<< HEAD
 =======
 # Spotify API ETL Pipeline
 ## 🎯 Project Overview
