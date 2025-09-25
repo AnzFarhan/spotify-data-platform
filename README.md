@@ -2,8 +2,6 @@
 
 A comprehensive data platform showcasing **Data Engineering**, **Analytics**, and **Data Science** skills using Spotify listening data.
 
-<<<<<<< HEAD
-=======
 # Spotify API ETL Pipeline
 ## 🎯 Project Overview
 
@@ -15,7 +13,7 @@ A comprehensive data platform showcasing **Data Engineering**, **Analytics**, an
 - Production-ready monitoring and logging
 
 ## 🏗️ Architecture
-- 
+![assets/Architucture_Spotfiy_Data_Platform.drawio.png](https://github.com/AnzFarhan/spotify-data-platform/blob/ef07643d0da9f1206dfac6a34cbc39c3f3f067c6/assets/Architucture_Spotfiy_Data_Platform.drawio.png)
 
 ## 🚀 Features
 ### ✅ Data Extraction
@@ -117,5 +115,3 @@ python scripts/setup_database.py
 - Phase 4: Real-time Recommendations
 
 *********************************************************************************************
->>>>>>> d6fa1a7 (Update file)
-
