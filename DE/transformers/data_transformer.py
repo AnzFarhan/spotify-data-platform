@@ -1,500 +1,356 @@
 """
-Enhanced Data Transformation Pipeline for Spotify Data
-Features: Advanced cleaning, normalization, feature engineering, and analytics
-Optimized for spotify_extractor_v2.py data structure with comprehensive analytics
+Day 3: Data Transformation Pipeline
+Features: Data cleaning, normalization, feature engineering
 """
-
 import pandas as pd
 import numpy as np
-from datetime import datetime, timezone, timedelta
-import re
-from typing import Dict, List, Optional, Union, Any, Tuple
+from datetime import datetime, timezone
 import logging
-from collections import Counter
-import warnings
+from typing import Dict, List, Optional, Tuple
+import re
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-warnings.filterwarnings('ignore', category=UserWarning)
-
-# Import the enhanced transformer for full functionality
 class SpotifyDataTransformer:
-    """
-    Enhanced transformer for Spotify data with comprehensive feature engineering.
-    Specifically optimized for data structure from spotify_extractor_v2.py extractor.
-    Provides backward compatibility while offering advanced analytics capabilities.
-    """
-    """
-    Enhanced transformer for Spotify data with comprehensive feature engineering.
-    Specifically optimized for data structure from spotify_extractor_v2.py extractor.
-    """
+    """Transform and clean Spotify data for database loading"""
     
     def __init__(self):
-        """Initialize the transformer with Spotify-specific configurations"""
-        # Core audio feature columns from Spotify Web API
-        self.audio_feature_columns = [
-            'danceability', 'energy', 'key', 'loudness', 'mode',
-            'speechiness', 'acousticness', 'instrumentalness', 
-            'liveness', 'valence', 'tempo', 'time_signature'
-        ]
-        
-        # Track metadata columns from spotify_extractor_v2.py
-        self.track_metadata_columns = [
-            'track_id', 'track_name', 'artist_id', 'artist_name',
-            'album_id', 'album_name', 'played_at', 'duration_ms',
-            'popularity', 'explicit', 'preview_url', 'release_date',
-            'album_type', 'total_tracks'
-        ]
-        
-        # Valid ranges for audio features (for validation and outlier detection)
-        self.feature_ranges = {
-            'danceability': (0.0, 1.0),
-            'energy': (0.0, 1.0),
-            'key': (0, 11),
-            'loudness': (-60.0, 0.0),
-            'mode': (0, 1),
-            'speechiness': (0.0, 1.0),
-            'acousticness': (0.0, 1.0),
-            'instrumentalness': (0.0, 1.0),
-            'liveness': (0.0, 1.0),
-            'valence': (0.0, 1.0),
-            'tempo': (0.0, 300.0),
-            'time_signature': (3, 7)
-        }
-        
-        # Musical key mappings for better interpretation
-        self.key_mappings = {
-            0: 'C', 1: 'C#/Db', 2: 'D', 3: 'D#/Eb', 4: 'E', 5: 'F',
-            6: 'F#/Gb', 7: 'G', 8: 'G#/Ab', 9: 'A', 10: 'A#/Bb', 11: 'B'
-        }
-        
-        # Mode mappings
-        self.mode_mappings = {0: 'Minor', 1: 'Major'}
-        
-        # Album type categories for standardization
-        self.album_types = ['album', 'single', 'compilation']
-        
-        # Genre inference patterns (based on audio features)
-        self.genre_inference_patterns = {
-            'Electronic/Dance': {'danceability': 0.7, 'energy': 0.7, 'acousticness': 0.2},
-            'Hip Hop/Rap': {'speechiness': 0.33, 'energy': 0.6, 'danceability': 0.6},
-            'Classical/Instrumental': {'instrumentalness': 0.8, 'acousticness': 0.7},
-            'Jazz': {'acousticness': 0.5, 'instrumentalness': 0.3, 'energy': 0.4},
-            'Rock': {'energy': 0.7, 'loudness': -10, 'acousticness': 0.3},
-            'Pop': {'danceability': 0.6, 'energy': 0.6, 'valence': 0.5},
-            'Ambient/Chill': {'energy': 0.3, 'valence': 0.4, 'acousticness': 0.5}
+        self.genre_mappings = self._load_genre_mappings()
+    
+    def _load_genre_mappings(self) -> Dict[str, str]:
+        """Load genre category mappings"""
+        return {
+            'pop': 'Pop',
+            'rock': 'Rock', 
+            'hip hop': 'Hip Hop',
+            'electronic': 'Electronic',
+            'indie': 'Indie',
+            'jazz': 'Jazz',
+            'classical': 'Classical',
+            'country': 'Country',
+            'r&b': 'R&B',
+            'folk': 'Folk'
         }
     
-    def transform_spotify_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Main transformation pipeline for Spotify data from spotify_extractor_v2.py
+    def clean_text_fields(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Clean and normalize text fields"""
+        logger.info("Cleaning text fields...")
         
-        Args:
-            df: Raw DataFrame from spotify_extractor_v2.py
-            
-        Returns:
-            Fully transformed and enhanced DataFrame
-        """
-        logger.info(f"🚀 Starting enhanced transformation for {len(df)} tracks...")
-        
-        # Make a copy to avoid modifying original data
-        transformed_df = df.copy()
-        
-        # Core transformation steps
-        transformed_df = self._clean_and_validate_data(transformed_df)
-        transformed_df = self._normalize_timestamps(transformed_df)
-        transformed_df = self._process_audio_features(transformed_df)
-        transformed_df = self._create_derived_features(transformed_df)
-        transformed_df = self._add_listening_analytics(transformed_df)
-        transformed_df = self._categorize_and_classify(transformed_df)
-        transformed_df = self._handle_missing_values(transformed_df)
-        
-        logger.info(f"✅ Enhanced transformation completed. Output: {len(transformed_df)} records with {len(transformed_df.columns)} features")
-        return transformed_df
-    
-    def _clean_and_validate_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean and validate core data fields"""
-        logger.info("🧹 Cleaning and validating data fields...")
-        
-        # Clean text fields
         text_columns = ['track_name', 'artist_name', 'album_name']
+        df_cleaned = df.copy()
+        
         for col in text_columns:
-            if col in df.columns:
-                # Handle None values and clean text
-                df[col] = df[col].fillna('Unknown').astype(str)
-                df[col] = df[col].str.strip()
-                df[col] = df[col].str.replace(r'\s+', ' ', regex=True)  # Multiple spaces
-                df[col] = df[col].str.replace(r'[^\w\s\-\'\.\(\)&]', '', regex=True)  # Special chars
+            if col in df_cleaned.columns:
+                # Handle None values first
+                df_cleaned[col] = df_cleaned[col].fillna('')
+                
+                # Convert to string type
+                df_cleaned[col] = df_cleaned[col].astype(str)
+                
+                # Remove extra whitespace
+                df_cleaned[col] = df_cleaned[col].str.strip()
+                
+                # Remove special characters that cause database issues
+                df_cleaned[col] = df_cleaned[col].str.replace(r'[^\w\s\-\'\(\)\&]', '', regex=True)
+                
+                # Limit length to prevent database issues
+                max_length = 200 if col != 'track_name' else 300
+                df_cleaned[col] = df_cleaned[col].str[:max_length]
+                
+                # Handle empty strings
+                df_cleaned[col] = df_cleaned[col].replace('', np.nan)
         
-        # Validate and clean IDs
-        id_columns = ['track_id', 'artist_id', 'album_id']
-        for col in id_columns:
-            if col in df.columns:
-                df[col] = df[col].fillna('unknown').astype(str)
-                df[col] = df[col].str.strip()
-        
-        # Clean duration_ms
-        if 'duration_ms' in df.columns:
-            df['duration_ms'] = pd.to_numeric(df['duration_ms'], errors='coerce')
-            df['duration_ms'] = df['duration_ms'].fillna(180000)  # Default 3 minutes
-            df['duration_ms'] = np.clip(df['duration_ms'], 1000, 3600000)  # 1s to 1h
-        
-        # Clean popularity
-        if 'popularity' in df.columns:
-            df['popularity'] = pd.to_numeric(df['popularity'], errors='coerce')
-            df['popularity'] = df['popularity'].fillna(0)
-            df['popularity'] = np.clip(df['popularity'], 0, 100)
-        
-        # Handle boolean fields
-        if 'explicit' in df.columns:
-            df['explicit'] = df['explicit'].fillna(False).astype(bool)
-        
-        return df
+        return df_cleaned
     
-    def _normalize_timestamps(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Normalize and enhance timestamp data"""
-        logger.info("⏰ Processing timestamps and temporal features...")
+    def normalize_timestamps(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Normalize timestamp formats"""
+        logger.info("Normalizing timestamps...")
         
         if 'played_at' in df.columns:
-            # Parse played_at timestamps
-            df['played_at'] = pd.to_datetime(df['played_at'], utc=True, errors='coerce')
-            df['played_at'] = df['played_at'].fillna(datetime.now(timezone.utc))
+            # Convert to datetime
+            df['played_at'] = pd.to_datetime(df['played_at'], utc=True)
             
-            # Create temporal features
-            df['play_hour'] = df['played_at'].dt.hour
-            df['play_day_of_week'] = df['played_at'].dt.dayofweek  # 0=Monday
-            df['play_month'] = df['played_at'].dt.month
-            df['play_year'] = df['played_at'].dt.year
-            df['play_date'] = df['played_at'].dt.date
-            
-            # Time of day categories
-            df['time_of_day'] = pd.cut(df['play_hour'], 
-                                     bins=[0, 6, 12, 18, 24], 
-                                     labels=['Night', 'Morning', 'Afternoon', 'Evening'],
-                                     include_lowest=True)
+            # Create additional time-based features
+            df['played_date'] = df['played_at'].dt.date
+            df['played_hour'] = df['played_at'].dt.hour
+            df['played_day_of_week'] = df['played_at'].dt.day_name()
+            df['played_month'] = df['played_at'].dt.month
         
-        # Process release_date if available
+        # Handle release dates
         if 'release_date' in df.columns:
+            # Spotify release dates come in different formats
             df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
+            
+            # Extract year for analysis
             df['release_year'] = df['release_date'].dt.year
-            df['release_decade'] = (df['release_year'] // 10) * 10
+        
+        return df
+    
+    def normalize_audio_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Normalize audio feature values"""
+        logger.info("Normalizing audio features...")
+        
+        # Audio features that should be between 0 and 1
+        feature_columns = [
+            'danceability', 'energy', 'speechiness', 'acousticness',
+            'instrumentalness', 'liveness', 'valence'
+        ]
+        
+        for col in feature_columns:
+            if col in df.columns:
+                # Ensure values are between 0 and 1
+                df[col] = df[col].clip(0, 1)
+                
+                # Round to 3 decimal places
+                df[col] = df[col].round(3)
+        
+        # Handle tempo (can be any positive value)
+        if 'tempo' in df.columns:
+            df['tempo'] = df['tempo'].clip(0, 300)  # Reasonable tempo range
+            df['tempo'] = df['tempo'].round(2)
+        
+        # Handle loudness (typically negative values)
+        if 'loudness' in df.columns:
+            df['loudness'] = df['loudness'].clip(-60, 0)  # Typical range
+            df['loudness'] = df['loudness'].round(2)
+        
+        return df
+    
+    def create_derived_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Create derived features for analysis"""
+        logger.info("Creating derived features...")
+        
+        # Mood categories based on valence and energy
+        if 'valence' in df.columns and 'energy' in df.columns:
+            def get_mood(row):
+                valence, energy = row['valence'], row['energy']
+                if pd.isna(valence) or pd.isna(energy):
+                    return 'Unknown'
+                
+                if valence > 0.6 and energy > 0.6:
+                    return 'Happy/Energetic'
+                elif valence > 0.6 and energy <= 0.6:
+                    return 'Happy/Calm'
+                elif valence <= 0.4 and energy > 0.6:
+                    return 'Angry/Intense'
+                elif valence <= 0.4 and energy <= 0.4:
+                    return 'Sad/Melancholic'
+                else:
+                    return 'Neutral'
             
-            # Calculate track age
-            current_year = datetime.now().year
-            df['track_age_years'] = current_year - df['release_year'].fillna(current_year)
-            df['track_age_years'] = np.clip(df['track_age_years'], 0, 100)
+            df['mood_category'] = df.apply(get_mood, axis=1)
         
-        return df
-    
-    def _process_audio_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Process and validate audio features with advanced transformations"""
-        logger.info("🎵 Processing audio features...")
-        
-        # Validate audio features ranges
-        for feature, (min_val, max_val) in self.feature_ranges.items():
-            if feature in df.columns:
-                df[feature] = pd.to_numeric(df[feature], errors='coerce')
-                
-                # Handle outliers
-                df[feature] = np.clip(df[feature], min_val, max_val)
-                
-                # Fill missing values with median
-                median_val = df[feature].median()
-                if pd.isna(median_val):  # If all are NaN, use midpoint
-                    median_val = (min_val + max_val) / 2
-                df[feature] = df[feature].fillna(median_val)
-        
-        # Create normalized audio feature groups
-        if all(col in df.columns for col in ['danceability', 'energy', 'valence']):
-            df['mood_score'] = (df['danceability'] + df['energy'] + df['valence']) / 3
-            df['mood_category'] = pd.cut(df['mood_score'],
-                                       bins=[0, 0.3, 0.7, 1.0],
-                                       labels=['Sad/Calm', 'Neutral', 'Happy/Energetic'])
-        
-        # Acoustic vs Electronic spectrum
-        if 'acousticness' in df.columns:
-            df['acoustic_electronic'] = pd.cut(df['acousticness'],
-                                              bins=[0, 0.33, 0.67, 1.0],
-                                              labels=['Electronic', 'Mixed', 'Acoustic'])
-        
-        # Vocal content analysis
-        if all(col in df.columns for col in ['speechiness', 'instrumentalness']):
-            df['vocal_content'] = np.where(df['speechiness'] > 0.33, 'Speech/Rap',
-                                 np.where(df['instrumentalness'] > 0.5, 'Instrumental', 'Vocal'))
-        
-        # Musical key and mode interpretations
-        if 'key' in df.columns:
-            df['key_name'] = df['key'].map(self.key_mappings).fillna('Unknown')
-        
-        if 'mode' in df.columns:
-            df['mode_name'] = df['mode'].map(self.mode_mappings).fillna('Unknown')
-        
-        return df
-    
-    def _create_derived_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Create advanced derived features from base audio features"""
-        logger.info("🔧 Creating derived features...")
-        
-        # Duration-based features
+        # Duration categories
         if 'duration_ms' in df.columns:
-            df['duration_minutes'] = df['duration_ms'] / 60000
-            df['duration_category'] = pd.cut(df['duration_minutes'],
-                                           bins=[0, 2, 4, 6, float('inf')],
-                                           labels=['Short', 'Medium', 'Long', 'Very Long'])
+            def get_duration_category(ms):
+                if pd.isna(ms):
+                    return 'Unknown'
+                
+                minutes = ms / 60000
+                if minutes < 2:
+                    return 'Very Short'
+                elif minutes < 3:
+                    return 'Short'
+                elif minutes < 4:
+                    return 'Medium'
+                elif minutes < 6:
+                    return 'Long'
+                else:
+                    return 'Very Long'
+            
+            df['duration_category'] = df['duration_ms'].apply(get_duration_category)
+            df['duration_minutes'] = (df['duration_ms'] / 60000).round(2)
         
-        # Popularity-based features
+        # Popularity categories
         if 'popularity' in df.columns:
-            df['popularity_tier'] = pd.cut(df['popularity'],
-                                         bins=[0, 20, 50, 80, 100],
-                                         labels=['Niche', 'Moderate', 'Popular', 'Hit'])
-        
-        # Album context features
-        if 'total_tracks' in df.columns:
-            df['album_size_category'] = pd.cut(df['total_tracks'].fillna(1),
-                                             bins=[0, 3, 8, 15, float('inf')],
-                                             labels=['Single', 'EP', 'Album', 'Extended'])
-        
-        # Audio feature combinations for genre inference
-        audio_features = [col for col in self.audio_feature_columns if col in df.columns]
-        if len(audio_features) >= 6:  # Minimum features for analysis
-            # Energy-Valence quadrants (mood mapping)
-            if all(col in df.columns for col in ['energy', 'valence']):
-                df['energy_valence_quad'] = np.where(
-                    (df['energy'] >= 0.5) & (df['valence'] >= 0.5), 'High Energy Happy',
-                    np.where((df['energy'] >= 0.5) & (df['valence'] < 0.5), 'High Energy Sad',
-                    np.where((df['energy'] < 0.5) & (df['valence'] >= 0.5), 'Low Energy Happy',
-                    'Low Energy Sad')))
+            def get_popularity_category(pop):
+                if pd.isna(pop):
+                    return 'Unknown'
+                
+                if pop >= 80:
+                    return 'Viral'
+                elif pop >= 60:
+                    return 'Popular'
+                elif pop >= 40:
+                    return 'Moderate'
+                elif pop >= 20:
+                    return 'Niche'
+                else:
+                    return 'Obscure'
             
-            # Danceability-Energy for activity mapping
-            if all(col in df.columns for col in ['danceability', 'energy']):
-                df['activity_score'] = (df['danceability'] + df['energy']) / 2
-                df['activity_level'] = pd.cut(df['activity_score'],
-                                            bins=[0, 0.3, 0.7, 1.0],
-                                            labels=['Chill', 'Moderate', 'Active'])
+            df['popularity_category'] = df['popularity'].apply(get_popularity_category)
         
         return df
     
-    def _add_listening_analytics(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Add listening behavior analytics"""
-        logger.info("📊 Adding listening analytics...")
+    def handle_missing_values(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Handle missing values appropriately"""
+        logger.info("Handling missing values...")
         
-        # Listening frequency by artist/album
-        if 'artist_name' in df.columns:
-            artist_counts = df['artist_name'].value_counts()
-            df['artist_play_frequency'] = df['artist_name'].map(artist_counts)
-            df['is_favorite_artist'] = df['artist_play_frequency'] > df['artist_play_frequency'].quantile(0.8)
+        # Fill numeric features with median values
+        numeric_columns = ['popularity', 'duration_ms', 'tempo', 'loudness']
+        for col in numeric_columns:
+            if col in df.columns:
+                median_value = df[col].median()
+                df[col] = df[col].fillna(median_value)
         
-        if 'album_name' in df.columns:
-            album_counts = df['album_name'].value_counts()
-            df['album_play_frequency'] = df['album_name'].map(album_counts)
+        # Fill audio features with neutral values
+        audio_features = ['danceability', 'energy', 'valence', 'acousticness', 
+                         'instrumentalness', 'liveness', 'speechiness']
+        for col in audio_features:
+            if col in df.columns:
+                df[col] = df[col].fillna(0.5)  # Neutral value
         
-        # Listening patterns by time
+        # Fill categorical with 'Unknown'
+        categorical_columns = ['album_type', 'mood_category', 'duration_category']
+        for col in categorical_columns:
+            if col in df.columns:
+                df[col] = df[col].fillna('Unknown')
+        
+        return df
+    
+    def remove_duplicates(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Remove duplicate records intelligently"""
+        logger.info("Removing duplicates...")
+        
+        initial_count = len(df)
+        
+        # For listening history, duplicates are based on track_id + played_at
         if 'played_at' in df.columns:
-            # Sort by played_at for sequence analysis
-            df = df.sort_values('played_at')
-            
-            # Calculate time between plays
-            df['time_since_last_play'] = df['played_at'].diff().dt.total_seconds() / 60  # minutes
-            df['time_since_last_play'] = df['time_since_last_play'].fillna(0)
-            
-            # Listening session detection (gap > 30 minutes = new session)
-            df['new_session'] = df['time_since_last_play'] > 30
-            df['session_id'] = df['new_session'].cumsum()
+            # Keep the first occurrence of each track at each timestamp
+            df = df.drop_duplicates(subset=['track_id', 'played_at'], keep='first')
+        else:
+            # For other data, just track_id
+            df = df.drop_duplicates(subset=['track_id'], keep='first')
+        
+        final_count = len(df)
+        
+        if final_count != initial_count:
+            logger.info(f"Removed {initial_count - final_count} duplicate records")
         
         return df
     
-    def _categorize_and_classify(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Advanced categorization and genre inference"""
-        logger.info("🎯 Applying categorization and classification...")
+    def validate_data_quality(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict]:
+        """Validate data quality and return quality metrics"""
+        logger.info("Validating data quality...")
         
-        # Infer genre based on audio features
-        if len([col for col in self.audio_feature_columns if col in df.columns]) >= 8:
-            df['inferred_genre'] = df.apply(self._infer_genre_from_features, axis=1)
+        quality_report = {
+            'total_rows': len(df),
+            'missing_values': {},
+            'data_types': {},
+            'value_ranges': {}
+        }
         
-        # Explicit content analysis
-        if 'explicit' in df.columns:
-            explicit_rate = df.groupby('artist_name')['explicit'].mean() if 'artist_name' in df.columns else pd.Series()
-            if not explicit_rate.empty:
-                df['artist_explicit_rate'] = df['artist_name'].map(explicit_rate).fillna(0)
+        if df.empty:
+            return df, quality_report
         
-        # Recency classification
-        if 'release_year' in df.columns:
-            current_year = datetime.now().year
-            df['release_era'] = pd.cut(df['release_year'].fillna(2000),
-                                     bins=[1900, 1980, 1990, 2000, 2010, 2020, current_year + 1],
-                                     labels=['Classic', '80s', '90s', '2000s', '2010s', 'Recent'])
+        # Check missing values
+        for col in df.columns:
+            missing_count = df[col].isnull().sum()
+            if missing_count > 0:
+                quality_report['missing_values'][col] = {
+                    'count': missing_count,
+                    'percentage': (missing_count / len(df)) * 100
+                }
         
-        return df
+        # Check data types
+        quality_report['data_types'] = df.dtypes.to_dict()
+        
+        # Check value ranges for numeric columns
+        numeric_columns = df.select_dtypes(include=[np.number]).columns
+        for col in numeric_columns:
+            quality_report['value_ranges'][col] = {
+                'min': df[col].min(),
+                'max': df[col].max(),
+                'mean': df[col].mean()
+            }
+        
+        return df, quality_report
     
-    def _infer_genre_from_features(self, row: pd.Series) -> str:
-        """Infer genre based on audio feature patterns"""
-        scores = {}
+    def transform(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict]:
+        """Complete transformation pipeline"""
+        logger.info(f"Starting transformation of {len(df)} rows...")
         
-        for genre, thresholds in self.genre_inference_patterns.items():
-            score = 0
-            total_features = len(thresholds)
-            
-            for feature, threshold in thresholds.items():
-                if feature in row and not pd.isna(row[feature]):
-                    # Calculate similarity to threshold (closer = higher score)
-                    if feature == 'loudness':  # Special case for loudness (negative values)
-                        similarity = 1 - abs(row[feature] - threshold) / 30  # Normalize by typical range
-                    else:
-                        similarity = 1 - abs(row[feature] - threshold)
-                    score += max(0, similarity)
-            
-            scores[genre] = score / total_features if total_features > 0 else 0
-        
-        # Return genre with highest score, or 'Mixed' if no clear winner
-        if scores:
-            best_genre = max(scores.keys(), key=lambda x: scores[x])
-            return best_genre if scores[best_genre] > 0.3 else 'Mixed'
-        
-        return 'Unknown'
-    
-    def _handle_missing_values(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Final pass for handling any remaining missing values"""
-        logger.info("🔍 Final missing value handling...")
+        if df.empty:
+            return df, {}
         
         try:
-            # Handle remaining missing values with appropriate defaults
-            defaults = {
-                'album_type': 'album',
-                'total_tracks': 1,
-                'inferred_genre': 'Unknown',
-                'mood_category': 'Neutral',
-                'activity_level': 'Moderate',
-                'duration_category': 'Medium',
-                'popularity_tier': 'Moderate'
-            }
+            # Ensure required columns exist
+            required_columns = ['track_id', 'track_name']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                raise ValueError(f"Missing required columns: {missing_columns}")
             
-            # Handle preview_url separately since it should remain None when missing
-            if 'preview_url' in df.columns:
-                # preview_url can legitimately be None/NaN, so we leave it as is
-                pass  # Keep preview URLs as None where missing - not all tracks have previews
+            # Apply all transformations
+            df = self.clean_text_fields(df)
+            df = self.normalize_timestamps(df)
+            df = self.normalize_audio_features(df)
+            df = self.create_derived_features(df)
+            df = self.handle_missing_values(df)
+            df = self.remove_duplicates(df)
             
-            for col, default_val in defaults.items():
-                if col in df.columns:
-                    df[col] = df[col].fillna(default_val)
+            # Final validation
+            df, quality_report = self.validate_data_quality(df)
             
-            # Handle any remaining NaN values in other columns
-            for col in df.columns:
-                if col != 'preview_url' and df[col].isnull().any():
-                    if df[col].dtype == 'object':
-                        df[col] = df[col].fillna('Unknown')
-                    elif df[col].dtype in ['int64', 'float64']:
-                        df[col] = df[col].fillna(0)
-                    elif df[col].dtype == 'bool':
-                        df[col] = df[col].fillna(False)
+            logger.info(f"✅ Transformation complete: {len(df)} rows")
             
-            # Report on data quality
-            missing_counts = df.isnull().sum()
-            if missing_counts.sum() > 0:
-                logger.info(f"Final missing values (expected for preview_url): {missing_counts[missing_counts > 0].to_dict()}")
-            
-            return df
+            return df, quality_report
             
         except Exception as e:
-            logger.error(f"Error in missing value handling: {str(e)}")
+            logger.error(f"Error during transformation: {str(e)}")
             raise
-    
-    def get_transformation_summary(self, original_df: pd.DataFrame, transformed_df: pd.DataFrame) -> Dict[str, Any]:
-        """Generate a comprehensive summary of the transformation process"""
-        summary = {
-            'input_records': len(original_df),
-            'output_records': len(transformed_df),
-            'input_columns': len(original_df.columns),
-            'output_columns': len(transformed_df.columns),
-            'new_features_created': len(transformed_df.columns) - len(original_df.columns),
-            'audio_features_processed': len([col for col in self.audio_feature_columns if col in transformed_df.columns]),
-            'data_quality': {
-                'missing_values_remaining': transformed_df.isnull().sum().sum(),
-                'complete_records': len(transformed_df.dropna()),
-                'completion_rate': len(transformed_df.dropna()) / len(transformed_df) * 100
-            },
-            'feature_breakdown': {
-                'temporal_features': len([col for col in transformed_df.columns if 'play_' in col or 'time_' in col or 'session' in col]),
-                'derived_audio_features': len([col for col in transformed_df.columns if any(term in col for term in ['mood', 'activity', 'quad'])]),
-                'categorical_features': len([col for col in transformed_df.columns if transformed_df[col].dtype == 'category']),
-                'analytical_features': len([col for col in transformed_df.columns if 'frequency' in col or 'rate' in col])
-            }
-        }
-        
-        return summary
-    
-    def transform(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-        """
-        Legacy method for pipeline compatibility.
-        Returns tuple of (transformed_data, quality_report)
-        """
-        transformed_df = self.transform_spotify_data(df)
-        
-        # Generate quality report
-        quality_report = {
-            'input_records': len(df),
-            'output_records': len(transformed_df),
-            'input_columns': len(df.columns),
-            'output_columns': len(transformed_df.columns),
-            'new_features_created': len(transformed_df.columns) - len(df.columns),
-            'missing_values_remaining': transformed_df.isnull().sum().sum(),
-            'completion_rate': len(transformed_df.dropna()) / len(transformed_df) * 100 if len(transformed_df) > 0 else 0
-        }
-        
-        return transformed_df, quality_report
 
-
-def main():
-    """Test the enhanced transformer with sample data"""
-    print("🧪 Testing Enhanced Spotify Data Transformer...")
+def test_transformer():
+    """Test the data transformer"""
+    print("🧪 Testing Data Transformer")
+    print("=" * 30)
     
-    # Create sample data that matches spotify_extractor_v2.py structure
+    # Create sample data
     sample_data = {
-        'track_id': ['1', '2', '3'],
-        'track_name': ['Test Song 1', 'Test Song 2', 'Test Song 3'],
-        'artist_id': ['artist1', 'artist2', 'artist1'],
-        'artist_name': ['Artist One', 'Artist Two', 'Artist One'],
-        'album_id': ['album1', 'album2', 'album1'],
-        'album_name': ['Test Album', 'Another Album', 'Test Album'],
-        'played_at': ['2024-01-15T10:30:00Z', '2024-01-15T11:00:00Z', '2024-01-15T14:30:00Z'],
-        'duration_ms': [180000, 210000, 195000],
-        'popularity': [75, 60, 80],
-        'explicit': [False, True, False],
-        'danceability': [0.8, 0.6, 0.7],
-        'energy': [0.9, 0.5, 0.8],
-        'key': [5, 2, 7],
-        'loudness': [-8.5, -12.0, -6.8],
-        'mode': [1, 0, 1],
-        'speechiness': [0.05, 0.4, 0.08],
-        'acousticness': [0.1, 0.8, 0.2],
-        'instrumentalness': [0.0, 0.0, 0.0],
-        'liveness': [0.12, 0.3, 0.15],
-        'valence': [0.85, 0.4, 0.9],
-        'tempo': [128.0, 85.0, 140.0],
-        'time_signature': [4, 4, 4]
+        'track_id': ['1', '2', '3', '1'],  # Include duplicate
+        'track_name': ['  Song One  ', 'Song Two!@#', '', 'Song One'],
+        'artist_name': ['Artist A', 'Artist B & C', 'Artist C', 'Artist A'],
+        'album_name': ['Album 1', 'Album 2', 'Album 3', 'Album 1'],
+        'played_at': ['2024-01-15T10:30:00Z', '2024-01-15T11:00:00Z', '2024-01-15T12:00:00Z', '2024-01-15T10:30:00Z'],
+        'duration_ms': [210000, 180000, 240000, 210000],
+        'popularity': [75, 60, np.nan, 75],
+        'energy': [0.8, 0.4, 0.9, 0.8],
+        'valence': [0.7, 0.3, 0.8, 0.7],
+        'tempo': [120.5, 95.2, 140.0, 120.5],
+        'danceability': [0.6, 0.3, 0.9, 0.6]
     }
     
     df = pd.DataFrame(sample_data)
+    print(f"📊 Input data: {len(df)} rows")
+    
+    # Transform the data
     transformer = SpotifyDataTransformer()
+    transformed_df, quality_report = transformer.transform(df)
     
-    print(f"📊 Input: {len(df)} records, {len(df.columns)} columns")
-    transformed_df = transformer.transform_spotify_data(df)
-    print(f"✅ Output: {len(transformed_df)} records, {len(transformed_df.columns)} columns")
+    print(f"📊 Output data: {len(transformed_df)} rows")
+    print(f"📋 New columns: {len(transformed_df.columns)}")
     
-    # Show summary
-    summary = transformer.get_transformation_summary(df, transformed_df)
-    print("\n📈 Transformation Summary:")
-    for key, value in summary.items():
-        if isinstance(value, dict):
-            print(f"  {key}:")
-            for sub_key, sub_value in value.items():
-                print(f"    {sub_key}: {sub_value}")
-        else:
-            print(f"  {key}: {value}")
+    # Show sample results
+    print("\n📈 Sample transformed data:")
+    display_cols = ['track_name', 'mood_category', 'duration_category', 'popularity_category']
+    available_cols = [col for col in display_cols if col in transformed_df.columns]
+    if available_cols:
+        print(transformed_df[available_cols].head().to_string(index=False))
     
-    print(f"\n🔍 New columns created: {list(set(transformed_df.columns) - set(df.columns))}")
-
+    # Show quality report
+    print("\n📊 Quality Report:")
+    print(f"Total rows: {quality_report['total_rows']}")
+    if quality_report['missing_values']:
+        print("Missing values:")
+        for col, info in quality_report['missing_values'].items():
+            print(f"  {col}: {info['count']} ({info['percentage']:.1f}%)")
+    else:
+        print("No missing values found")
+    
+    # Save test results
+    transformed_df.to_csv('day3_transformation_test.csv', index=False)
+    print(f"\n💾 Saved transformed data to: day3_transformation_test.csv")
+    
+    return True
 
 if __name__ == "__main__":
-    main()
+    test_transformer()

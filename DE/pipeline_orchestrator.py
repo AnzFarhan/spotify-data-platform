@@ -17,13 +17,7 @@ from DE.extractors.spotify_extractor_v2 import SpotifyExtractorV2
 from DE.transformers.data_transformer import SpotifyDataTransformer
 from DE.loaders.database_loader import SpotifyDatabaseLoader
 
-import os
-
 # Configure logging
-log_dir = 'logs'
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
