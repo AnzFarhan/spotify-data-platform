@@ -13,7 +13,7 @@ A comprehensive data platform showcasing **Data Engineering**, **Analytics**, an
 - Production-ready monitoring and logging
 
 ## 🏗️ Architecture
-[assets/Architucture_Spotfiy_Data_Platform.drawio.png](https://github.com/AnzFarhan/spotify-data-platform/blob/ef07643d0da9f1206dfac6a34cbc39c3f3f067c6/assets/Architucture_Spotfiy_Data_Platform.drawio.png)
+![assets/Architucture_Spotfiy_Data_Platform.drawio.png](https://github.com/AnzFarhan/spotify-data-platform/blob/ef07643d0da9f1206dfac6a34cbc39c3f3f067c6/assets/Architucture_Spotfiy_Data_Platform.drawio.png)
 
 ## 🚀 Features
 ### ✅ Data Extraction
