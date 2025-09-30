@@ -107,6 +107,25 @@ createdb spotify_data
 # Initialize schema
 python scripts/setup_database.py
 ```
+### 5. Airflow Setup 
+```bash
+# Navigate to airflow directory  
+cd airflow
+```
+```bash
+# Initialize Airflow (first time only)
+docker-compose up airflow-init
+```
+```bash
+# Start all services
+docker-compose up -d
+```
+### 6. **Access the Services Airflow**
+- **Airflow Web UI**: http://localhost:8080
+  - Username: `your_username` 
+  - Password: `your_password`
+- **Flower (Celery Monitoring)**: http://localhost:5555
+- **PostgreSQL Database**: localhost:5432
 
 *********************************************************************************************
 ### 🎯 Next Steps (Future Phases)
