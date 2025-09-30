@@ -29,7 +29,15 @@ class SpotifyDataTransformer:
             'classical': 'Classical',
             'country': 'Country',
             'r&b': 'R&B',
-            'folk': 'Folk'
+            'folk': 'Folk',
+            'k-pop': 'K-Pop',
+            'metal': 'Metal',
+            'punk': 'Punk',
+            'reggae': 'Reggae',
+            'blues': 'Blues',
+            'latin': 'Latin',
+            'world': 'World',
+            'soundtrack': 'Soundtrack'
         }
     
     def clean_text_fields(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -115,7 +123,8 @@ class SpotifyDataTransformer:
             df['loudness'] = df['loudness'].round(2)
         
         return df
-    
+
+    # Create derived features for analysis
     def create_derived_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Create derived features for analysis"""
         logger.info("Creating derived features...")
@@ -182,6 +191,7 @@ class SpotifyDataTransformer:
         
         return df
     
+    # For handling missing values 
     def handle_missing_values(self, df: pd.DataFrame) -> pd.DataFrame:
         """Handle missing values appropriately"""
         logger.info("Handling missing values...")
@@ -208,11 +218,12 @@ class SpotifyDataTransformer:
         
         return df
     
+    # Remove duplicates intelligently
     def remove_duplicates(self, df: pd.DataFrame) -> pd.DataFrame:
         """Remove duplicate records intelligently"""
         logger.info("Removing duplicates...")
         
-        initial_count = len(df)
+        initial_count = len(df) 
         
         # For listening history, duplicates are based on track_id + played_at
         if 'played_at' in df.columns:
@@ -299,12 +310,16 @@ class SpotifyDataTransformer:
             logger.error(f"Error during transformation: {str(e)}")
             raise
 
+# Method for Testing for all method functions "Clean Text Fields", 
+# "Normalize Timestamps", "Normalize Audio Features", "Create Derived Features", 
+# "Handle Missing Values", "Remove Duplicates", "Validate Data Quality", 
+# and the full "Transform" pipeline.
 def test_transformer():
     """Test the data transformer"""
     print("🧪 Testing Data Transformer")
     print("=" * 30)
     
-    # Create sample data
+    # Create sample data for testing various edge cases
     sample_data = {
         'track_id': ['1', '2', '3', '1'],  # Include duplicate
         'track_name': ['  Song One  ', 'Song Two!@#', '', 'Song One'],

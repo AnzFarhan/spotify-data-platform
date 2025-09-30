@@ -208,6 +208,10 @@ class SpotifyExtractorV2:
             
             for i in range(0, len(track_ids), batch_size):
                 batch_ids = track_ids[i:i + batch_size]
+                
+                # Add this right before the API call
+                logger.info(f"🔗 Making API call to: https://api.spotify.com/v1/audio-features/?ids={','.join(batch_ids[:3])}...")
+                
                 try:
                     features = self._make_api_call(self.sp.audio_features, batch_ids)
                     if features:
@@ -265,7 +269,7 @@ class SpotifyExtractorV2:
         for i, track_id in enumerate(track_ids):
             # Create more realistic mock values with variation based on track index
             random.seed(hash(track_id) % 1000)  # Use track_id for consistent but varied results
-            
+            # Create custom audio features because spotify API not working permission
             mock_feature = {
                 'track_id': track_id,
                 'danceability': round(random.uniform(0.3, 0.9), 3),     # Varied danceability
