@@ -1,0 +1,6 @@
+@echo off
+echo Stopping Airflow containers...
+docker compose down
+
+echo Waiting for containers to stop...
+timeout /t 5
