@@ -49,7 +49,7 @@ POSTGRES_PASSWORD=your_password
 ## 🧪 Testing
 ```bash
 # Python virtual environment
-.venv\Scripts\activate          # To activate the virtual environment
+.\.venv\Scripts\python.exe " "          # To activate the virtual environment
 ```
 ```bash
 # Environment and connections
