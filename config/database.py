@@ -13,7 +13,7 @@ class DatabaseConfig:
     def __init__(self):
         self.host = os.getenv('POSTGRES_HOST', 'localhost')
         self.port = os.getenv('POSTGRES_PORT', '5432')
-        self.database = os.getenv('POSTGRES_DB', 'spotify_data')
+        self.database = os.getenv('POSTGRES_DB', 'spotify_data_platform')
         self.user = os.getenv('POSTGRES_USER', 'postgres')
         self.password = os.getenv('POSTGRES_PASSWORD', 'admin0125')
     
