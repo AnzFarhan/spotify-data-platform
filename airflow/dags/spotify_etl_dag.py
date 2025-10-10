@@ -481,12 +481,13 @@ def generate_pipeline_report(**context):
         
         # Calculate pipeline duration
         dag_run = context['dag_run']
-        execution_date = dag_run.execution_date
+        # Use logical_date for Airflow 3.x (execution_date is deprecated)
+        logical_date = dag_run.logical_date if hasattr(dag_run, 'logical_date') else dag_run.execution_date
         
         # Create comprehensive report
         report = {
             'pipeline_id': DAG_ID,
-            'execution_date': execution_date.isoformat(),
+            'execution_date': logical_date.isoformat(),
             'execution_status': 'SUCCESS' if all([
                 extraction_status == 'success',
                 transformation_status == 'success', 
@@ -497,7 +498,7 @@ def generate_pipeline_report(**context):
             'extraction': {
                 'status': extraction_status,
                 'records_extracted': extracted_records
-            },
+            }, 
             'transformation': {
                 'status': transformation_status,
                 'records_transformed': transformed_records
@@ -516,7 +517,7 @@ def generate_pipeline_report(**context):
         # Log the report
         logger.info("PIPELINE EXECUTION REPORT")
         logger.info("=" * 50)
-        logger.info(f"Execution Date: {execution_date}")
+        logger.info(f"Execution Date: {logical_date}")
         logger.info(f"Spotify User: {user_info.get('display_name', 'Unknown')}")
         logger.info(f"Extracted: {extracted_records} records")
         logger.info(f" Transformed: {transformed_records} records")
