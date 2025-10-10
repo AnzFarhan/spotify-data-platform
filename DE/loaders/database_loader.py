@@ -41,7 +41,7 @@ class SpotifyDatabaseLoader:
         return {
             'host': os.getenv('POSTGRES_HOST', 'localhost'),
             'port': os.getenv('POSTGRES_PORT', '5432'),
-            'database': os.getenv('POSTGRES_DB', 'spotify_data'),
+            'database': os.getenv('POSTGRES_DB', 'spotify_data_platform'),
             'user': os.getenv('POSTGRES_USER', 'postgres'),
             'password': os.getenv('POSTGRES_PASSWORD', '')
         }
@@ -50,7 +50,7 @@ class SpotifyDatabaseLoader:
         """Build database connection string"""
         host = os.getenv('POSTGRES_HOST', 'localhost')
         port = os.getenv('POSTGRES_PORT', '5432')
-        database = os.getenv('POSTGRES_DB', 'spotify_data')
+        database = os.getenv('POSTGRES_DB', 'spotify_data_platform')
         user = os.getenv('POSTGRES_USER', 'postgres')
         password = os.getenv('POSTGRES_PASSWORD', '')
         
