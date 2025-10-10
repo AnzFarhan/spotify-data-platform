@@ -39,20 +39,20 @@ class SpotifyDatabaseLoader:
     def _build_connection_params(self) -> Dict[str, str]:
         """Build connection parameters dictionary for compatibility"""
         return {
-            'host': os.getenv('POSTGRES_HOST', 'localhost'),
-            'port': os.getenv('POSTGRES_PORT', '5432'),
-            'database': os.getenv('POSTGRES_DB', 'spotify_data_platform'),
-            'user': os.getenv('POSTGRES_USER', 'postgres'),
-            'password': os.getenv('POSTGRES_PASSWORD', '')
+            'host': os.getenv('POSTGRES_HOST'),
+            'port': os.getenv('POSTGRES_PORT'),
+            'database': os.getenv('POSTGRES_DB'),
+            'user': os.getenv('POSTGRES_USER'),
+            'password': os.getenv('POSTGRES_PASSWORD')
         }
     
     def _build_connection_string(self) -> str:
         """Build database connection string"""
-        host = os.getenv('POSTGRES_HOST', 'localhost')
-        port = os.getenv('POSTGRES_PORT', '5432')
-        database = os.getenv('POSTGRES_DB', 'spotify_data_platform')
-        user = os.getenv('POSTGRES_USER', 'postgres')
-        password = os.getenv('POSTGRES_PASSWORD', '')
+        host = os.getenv('POSTGRES_HOST')
+        port = os.getenv('POSTGRES_PORT')
+        database = os.getenv('POSTGRES_DB')
+        user = os.getenv('POSTGRES_USER')
+        password = os.getenv('POSTGRES_PASSWORD')
         
         return f"postgresql://{user}:{password}@{host}:{port}/{database}"
     

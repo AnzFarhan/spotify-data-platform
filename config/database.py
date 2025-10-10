@@ -11,11 +11,11 @@ class DatabaseConfig:
     """Basic database configuration"""
     
     def __init__(self):
-        self.host = os.getenv('POSTGRES_HOST', 'localhost')
-        self.port = os.getenv('POSTGRES_PORT', '5432')
-        self.database = os.getenv('POSTGRES_DB', 'spotify_data_platform')
-        self.user = os.getenv('POSTGRES_USER', 'postgres')
-        self.password = os.getenv('POSTGRES_PASSWORD', 'admin0125')
+        self.host = os.getenv('POSTGRES_HOST')
+        self.port = os.getenv('POSTGRES_PORT')
+        self.database = os.getenv('POSTGRES_DB')
+        self.user = os.getenv('POSTGRES_USER')
+        self.password = os.getenv('POSTGRES_PASSWORD')
     
     def get_connection_string(self):
         """Get database connection string"""
@@ -30,7 +30,7 @@ class DatabaseConfig:
         if not self.password: missing.append('POSTGRES_PASSWORD')
         
         if missing:
-            print(f"❌ Missing database config: {', '.join(missing)}")
+            print(f"Missing database config: {', '.join(missing)}")
             return False
         
         print("✅ Database configuration looks good!")
