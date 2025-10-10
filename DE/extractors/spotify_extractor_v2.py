@@ -34,7 +34,7 @@ class SpotifyExtractorV2:
     def __init__(self):
         self.client_id = os.getenv('SPOTIFY_CLIENT_ID')
         self.client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
-        self.redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:8082/callback') 
+        self.redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI') 
         
         # Enhanced scopes for comprehensive data access
         self.scope = "user-read-recently-played user-read-private user-read-email user-library-read user-read-playback-state user-top-read"
