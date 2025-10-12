@@ -208,15 +208,19 @@ __marimo__/
 
 # Environment files
 .env
+airflow/.env
 
 # Data files (never commit personal data!)
 data/
 *.csv
 *.json
+*.sql
+backup_*.sql
 
 # Logs
 logs/
 *.log
+airflow/logs/
 
 # Database files
 *.db
@@ -224,3 +228,22 @@ logs/
 
 # Spotify cache
 .spotify_cache
+.cache
+
+# Airflow specific
+airflow/logs/
+airflow/plugins/
+airflow/airflow.db
+airflow/airflow-webserver.pid
+airflow/standalone_admin_password.txt
+airflow/*.log
+airflow/*.pid
+airflow/*.cfg.bak
+
+# Docker volumes data
+airflow/postgres-db-volume/
+airflow/pgadmin-data/
+
+# pgAdmin session data
+pgadmin/
+.pgadmin/
