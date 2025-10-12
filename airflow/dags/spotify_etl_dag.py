@@ -79,7 +79,7 @@ try:
     from DE.extractors.spotify_extractor_v2 import SpotifyExtractorV2
     from DE.transformers.data_transformer import SpotifyDataTransformer
     from DE.loaders.database_loader import SpotifyDatabaseLoader
-    from config.database import get_db_connection
+    from config.database import DatabaseConfig
     MODULES_AVAILABLE = True
     logger.info("All project modules imported successfully")
 except ImportError as e:
