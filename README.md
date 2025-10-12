@@ -94,19 +94,42 @@ venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 ```
-### 4. Database Setup
+### 4. Database Setup Access in (pgAdmin WebUI)
+#### **Step 1: Start pgAdmin**
 ```bash
-# COnnect to database 
-psql -h <hostname> -p <port> -U <username> -d <database_name>
+cd C:\Users\A\spotify-data-platform\airflow
+docker compose up -d pgadmin
 ```
-```bash
-# Create PostgreSQL database
-createdb spotify_data
-```
-```bash
-# Initialize schema
-python scripts/setup_database.py
-```
+
+- Wait 30 seconds for it to start, then:
+
+#### **Step 2: Open pgAdmin**
+
+- 🌐 Open browser: **http://localhost:5050**
+
+#### **Step 3: Login**
+
+- **Email**: `admin@admin.com`
+- **Password**: `your_secure_password`
+
+#### **Step 4: Add Your Database Server**
+
+- 1. Right-click **"Servers"** in left panel
+- 2. Select **"Register" → "Server"**
+
+#### **General Tab:**
+- **Name**: `Spotify Database`
+
+#### **Connection Tab:**
+- **Host name/address**: `postgres`
+- **Port**: `5432`
+- **Maintenance database**: `airflow`
+- **Username**: `airflow`
+- **Password**: `airflow`
+- ✅ Check "Save password"
+
+#### Click **Save**!
+
 ### 5. Airflow Setup 
 ```bash
 # Navigate to airflow directory  
@@ -117,10 +140,62 @@ cd airflow
 docker-compose up airflow-init
 ```
 ```bash
-# Start all services
+# Restart/Start all services
 docker-compose up -d
 ```
-### 6. **Access the Services Airflow**
+### 6. Check Docker Database Using Docker Excecute Command
+```bash
+# Enter the Docker PostgreSQL container 
+docker exec -it airflow-postgres-1 psql -U airflow -d airflow
+```
+```bash
+# Inside psql: 
+\dt    # List all tables
+# You should see:
+# - Airflow tables: dag, dag_run, task_instance, etc.
+\d
+# Describe a specific table
+\d tracks
+\d artists
+\d listening_history
+\d albums
+\d 
+# - YOUR tables: artists, albums, tracks, audio_features, listening_history
+```
+```bash
+# Query your data
+SELECT COUNT(*) FROM tracks;
+SELECT COUNT(*) FROM artists;
+SELECT * FROM listening_history ORDER BY played_at DESC LIMIT 5;
+# Exit
+\q
+```
+#### 6.1. Docker Volume Backup 
+##### Backup Volume:
+```bash
+# Stop containers
+cd C:\Users\A\spotify-data-platform\airflow
+docker-compose down
+
+# Backup the volume
+docker run --rm -v airflow_postgres-db-volume:/data -v ${PWD}:/backup ubuntu tar czf /backup/postgres-backup.tar.gz -C /data .
+
+# Restart containers
+docker-compose up -d
+```
+##### Backup Volume:
+```bash
+# Stop containers
+docker-compose down
+
+# Restore the volume
+docker run --rm -v airflow_postgres-db-volume:/data -v ${PWD}:/backup ubuntu tar xzf /backup/postgres-backup.tar.gz -C /data
+
+# Restart containers
+docker-compose up -d
+```
+
+### 7. **Access the Services Airflow**
 - **Airflow Web UI**: http://localhost:8080
   - Username: `username` 
   - Password: `password`
