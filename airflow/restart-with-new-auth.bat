@@ -13,17 +13,21 @@ timeout /t 10
 
 echo Starting all Airflow services...
 docker compose up -d
+echo Starting pgAdmin services...
+docker compose up -d pgadmin
 
 echo.
 echo ===============================================
-echo Airflow Authentication Updated!
+echo Airflow and pgAdmin Authentication Updated!
 echo ===============================================
 echo.
 echo New Login Credentials:
-echo Username: admin
-echo Password: admin01
+echo Username: your_username
+echo Password: your_password
 echo.
-echo Web UI: http://localhost:8080
+echo Airflow Web UI: http://localhost:8080
+echo.
+echo pgAdmin Web UI: http://localhost:5050
 echo.
 echo Waiting for services to be ready...
 timeout /t 20
