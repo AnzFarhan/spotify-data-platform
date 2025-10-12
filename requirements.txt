@@ -46,8 +46,4 @@ redis>=4.0.0
 gunicorn>=20.1.0
 psutil>=5.8.0
 
-# We'll add more packages in later days
-# streamlit (Day 8)
-# scikit-learn (Day 15)
-# plotly (Day 11)
 
