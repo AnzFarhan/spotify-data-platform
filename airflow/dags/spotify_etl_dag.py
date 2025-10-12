@@ -1,5 +1,5 @@
 """
-Day 3: Spotify ETL DAG for Apache Airflow
+Spotify ETL DAG for Apache Airflow
 Complete ETL pipeline orchestration with enhanced production features
 
 This DAG provides enterprise-grade workflow management with comprehensive
@@ -153,11 +153,11 @@ def check_database_connection(**context):
         
         # Database connection parameters - using Airflow's PostgreSQL container
         db_params = {
-            'host': os.getenv('POSTGRES_HOST', 'postgres'),
-            'port': os.getenv('POSTGRES_PORT', '5432'),
-            'database': os.getenv('POSTGRES_DB', 'airflow'),  # Use Airflow's database
-            'user': os.getenv('POSTGRES_USER', 'airflow'),    # Use Airflow's user
-            'password': os.getenv('POSTGRES_PASSWORD', 'airflow')  # Use Airflow's password
+            'host': os.getenv('POSTGRES_HOST'),
+            'port': os.getenv('POSTGRES_PORT'),
+            'database': os.getenv('POSTGRES_DB'),  
+            'user': os.getenv('POSTGRES_USER'),
+            'password': os.getenv('POSTGRES_PASSWORD')
         }
         
         # Test connection
@@ -412,11 +412,11 @@ def check_data_quality(**context):
         
         # Database connection parameters - using Airflow's PostgreSQL container
         db_params = {
-            'host': os.getenv('POSTGRES_HOST', 'postgres'),
-            'port': os.getenv('POSTGRES_PORT', '5432'),
-            'database': os.getenv('POSTGRES_DB', 'airflow'),  # Use Airflow's database
-            'user': os.getenv('POSTGRES_USER', 'airflow'),    # Use Airflow's user
-            'password': os.getenv('POSTGRES_PASSWORD', 'airflow')  # Use Airflow's password
+            'host': os.getenv('POSTGRES_HOST'),
+            'port': os.getenv('POSTGRES_PORT'),
+            'database': os.getenv('POSTGRES_DB'),
+            'user': os.getenv('POSTGRES_USER'),
+            'password': os.getenv('POSTGRES_PASSWORD')
         }
         
         conn = psycopg2.connect(**db_params)
