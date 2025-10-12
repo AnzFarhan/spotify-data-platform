@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class DatabaseConfig:
-    """Basic database configuration"""
     
     def __init__(self):
         self.host = os.getenv('POSTGRES_HOST')
@@ -33,7 +32,7 @@ class DatabaseConfig:
             print(f"Missing database config: {', '.join(missing)}")
             return False
         
-        print("✅ Database configuration looks good!")
+        print("Database configuration looks good!")
         return True
 
 if __name__ == "__main__":
