@@ -145,8 +145,12 @@ docker-compose up -d
 ```
 ### 6. Check Docker Database Using Docker Excecute Command
 ```bash
+# Create table in the database
+Get-Content sql/create_tables.sql | docker exec -i airflow-postgres-1 psql -U admin -d spotify_data_platform
+```
+```bash
 # Enter the Docker PostgreSQL container 
-docker exec -it airflow-postgres-1 psql -U airflow -d airflow
+docker exec -it airflow-postgres-1 psql -U admin -d spotify_data_platform
 ```
 ```bash
 # Inside psql: 
