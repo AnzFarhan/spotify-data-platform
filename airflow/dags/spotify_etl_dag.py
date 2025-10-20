@@ -107,7 +107,8 @@ except ImportError as e:
 
 # DAG Configuration
 DAG_ID = 'spotify_etl_pipeline'
-SCHEDULE_INTERVAL = '0 */6 * * *'  # Every 6 hours
+SCHEDULE_INTERVAL = '0 */1 * * *'  # Every 1 hour (change */6 to */1 to capture more data)
+# SCHEDULE_INTERVAL = '0 */6 * * *'  # Every 6 hours (original - use for less frequent runs)
 MAX_ACTIVE_RUNS = 1
 CATCHUP = False
 RETRIES = 2
@@ -241,46 +242,136 @@ def check_spotify_authentication(**context):
 def extract_spotify_data(**context):
     """
     Task 3: Extract data from Spotify API
+    
+    Supports four extraction modes:
+    - 'recent': Recently played tracks (~50 tracks)
+    - 'liked': Liked/saved tracks (500+ tracks)
+    - 'playlists': All tracks from your playlists (1000+ tracks!)
+    - 'hybrid': Recently played + Liked + Playlists (BEST - comprehensive!)
     """
+    import pandas as pd
+    
     try:
-        logger.info(" Starting Spotify data extraction...")
+        logger.info("🎵 Starting Spotify data extraction...")
         
-        # Get track limit from Airflow Variable or use default
-        track_limit = Variable.get("spotify_track_limit", default_var=50, deserialize_json=False)
+        # Get configuration from Airflow Variables
+        extraction_mode = Variable.get("spotify_extraction_mode", default_var="hybrid", deserialize_json=False)
+        track_limit = Variable.get("spotify_track_limit", default_var=500, deserialize_json=False)
+        include_playlists = Variable.get("spotify_include_playlists", default_var="true", deserialize_json=False)
         track_limit = int(track_limit)
+        include_playlists = include_playlists.lower() in ('true', '1', 'yes')
         
-        logger.info(f"Extracting {track_limit} recent tracks...")
+        logger.info(f"📊 Extraction Mode: {extraction_mode}")
+        logger.info(f"📈 Track Limit: {track_limit}")
+        logger.info(f"📁 Include Playlists: {include_playlists}")
         
         # Initialize extractor
         extractor = SpotifyExtractorV2()
         
-        # Extract recent tracks with all enhanced features
-        df = extractor.extract_recent_tracks(limit=track_limit)
+        all_dataframes = []
         
-        if df.empty:
-            logger.warning("No data extracted from Spotify")
+        # Extract based on mode
+        if extraction_mode == "recent":
+            logger.info("🕐 Extracting RECENTLY PLAYED tracks only...")
+            df_recent = extractor.extract_recent_tracks(limit=min(track_limit, 50))
+            if not df_recent.empty:
+                df_recent['extraction_source'] = 'recent'
+                all_dataframes.append(df_recent)
+                logger.info(f"✅ Extracted {len(df_recent)} recently played tracks")
+        
+        elif extraction_mode == "liked":
+            logger.info("💚 Extracting LIKED SONGS only...")
+            df_liked = extractor.extract_liked_tracks(limit=track_limit)
+            if not df_liked.empty:
+                df_liked['extraction_source'] = 'liked'
+                all_dataframes.append(df_liked)
+                logger.info(f"✅ Extracted {len(df_liked)} liked tracks")
+        
+        elif extraction_mode == "playlists":
+            logger.info("📁 Extracting PLAYLIST TRACKS only...")
+            df_playlists = extractor.extract_playlist_tracks(limit=track_limit)
+            if not df_playlists.empty:
+                df_playlists['extraction_source'] = 'playlist'
+                all_dataframes.append(df_playlists)
+                logger.info(f"✅ Extracted {len(df_playlists)} playlist tracks")
+        
+        elif extraction_mode == "hybrid":
+            logger.info("🔄 Extracting HYBRID (Recently Played + Liked + Playlists)...")
+            
+            # 1. Extract recently played tracks
+            logger.info("  Step 1/3: Extracting recently played tracks...")
+            df_recent = extractor.extract_recent_tracks(limit=50)
+            if not df_recent.empty:
+                df_recent['extraction_source'] = 'recent'
+                all_dataframes.append(df_recent)
+                logger.info(f"  ✅ Got {len(df_recent)} recently played tracks")
+            
+            # 2. Extract liked songs
+            logger.info(f"  Step 2/3: Extracting up to {track_limit} liked songs...")
+            df_liked = extractor.extract_liked_tracks(limit=track_limit)
+            if not df_liked.empty:
+                df_liked['extraction_source'] = 'liked'
+                all_dataframes.append(df_liked)
+                logger.info(f"  ✅ Got {len(df_liked)} liked tracks")
+            
+            # 3. Extract playlist tracks (if enabled)
+            if include_playlists:
+                logger.info(f"  Step 3/3: Extracting up to {track_limit} tracks from playlists...")
+                df_playlists = extractor.extract_playlist_tracks(limit=track_limit)
+                if not df_playlists.empty:
+                    df_playlists['extraction_source'] = 'playlist'
+                    all_dataframes.append(df_playlists)
+                    logger.info(f"  ✅ Got {len(df_playlists)} playlist tracks")
+            else:
+                logger.info("  ⏭️ Step 3/3: Skipping playlists (disabled in settings)")
+        
+        else:
+            logger.error(f"❌ Invalid extraction mode: {extraction_mode}")
+            logger.error("   Valid modes: 'recent', 'liked', 'playlists', 'hybrid'")
+            raise ValueError(f"Invalid extraction_mode: {extraction_mode}")
+        
+        # Combine all dataframes
+        if not all_dataframes:
+            logger.warning("⚠️ No data extracted from Spotify")
             context['task_instance'].xcom_push(key='extraction_status', value='no_data')
             context['task_instance'].xcom_push(key='extracted_records', value=0)
             return "NO_DATA"
         
+        # Merge all dataframes and remove duplicates
+        df = pd.concat(all_dataframes, ignore_index=True)
+        
+        # Remove duplicate tracks (keep first occurrence)
+        initial_count = len(df)
+        df = df.drop_duplicates(subset=['track_id'], keep='first')
+        duplicates_removed = initial_count - len(df)
+        
+        if duplicates_removed > 0:
+            logger.info(f"🔄 Removed {duplicates_removed} duplicate tracks")
+        
         # Convert DataFrame to JSON for XCom (Airflow's data passing mechanism)
         df_json = df.to_json(orient='records', date_format='iso')
         
-        logger.info(f"Extraction completed successfully!")
-        logger.info(f"Records extracted: {len(df)}")
-        logger.info(f"Columns: {len(df.columns)}")
-        logger.info(f"Column names: {list(df.columns)}")
+        logger.info(f"✅ Extraction completed successfully!")
+        logger.info(f"📊 Total unique records: {len(df)}")
+        logger.info(f"📋 Columns: {len(df.columns)}")
+        logger.info(f"🔍 Extraction breakdown:")
+        if 'extraction_source' in df.columns:
+            for source in df['extraction_source'].unique():
+                count = len(df[df['extraction_source'] == source])
+                logger.info(f"   - {source}: {count} tracks")
         
         # Store extracted data for downstream tasks
         context['task_instance'].xcom_push(key='extracted_data', value=df_json)
         context['task_instance'].xcom_push(key='extraction_status', value='success')
+        context['task_instance'].xcom_push(key='extraction_mode', value=extraction_mode)
         context['task_instance'].xcom_push(key='extracted_records', value=len(df))
         context['task_instance'].xcom_push(key='extracted_columns', value=len(df.columns))
+        context['task_instance'].xcom_push(key='duplicates_removed', value=duplicates_removed)
         
         return "SUCCESS"
         
     except Exception as e:
-        logger.error(f"Data extraction failed: {str(e)}")
+        logger.error(f"❌ Data extraction failed: {str(e)}")
         context['task_instance'].xcom_push(key='extraction_status', value='failed')
         context['task_instance'].xcom_push(key='extracted_records', value=0)
         raise
@@ -334,9 +425,36 @@ def transform_data(**context):
         # Create a copy to avoid modifying the original
         df_serializable = transformed_df.copy()
         
-        # Convert all object columns to string to avoid numpy dtype issues
+        # CRITICAL: Handle date/timestamp columns properly BEFORE string conversion
+        # Replace NaT (Not a Time) with None to avoid "NaT" string in database
+        import pandas as pd
+        import numpy as np
+        
+        # Identify datetime columns
+        datetime_columns = df_serializable.select_dtypes(include=['datetime64[ns, UTC]', 'datetime64']).columns.tolist()
+        
+        # Also check for columns that might contain datetime strings or NaT
+        for col in df_serializable.columns:
+            if col in ['release_date', 'played_at', 'added_at', 'created_at', 'updated_at']:
+                if col not in datetime_columns:
+                    datetime_columns.append(col)
+        
+        # Replace NaT values with None in datetime columns
+        for col in datetime_columns:
+            if col in df_serializable.columns:
+                # Convert NaT to None (becomes NULL in database)
+                df_serializable[col] = df_serializable[col].replace({pd.NaT: None})
+                # Also handle numpy NaN in these columns
+                df_serializable[col] = df_serializable[col].replace({np.nan: None})
+        
+        # Convert all object columns to string, but preserve None values
         for col in df_serializable.select_dtypes(include=['object']).columns:
-            df_serializable[col] = df_serializable[col].astype(str)
+            # Skip datetime columns we already handled
+            if col not in datetime_columns:
+                # Convert to string but keep None as None (not "None" string)
+                df_serializable[col] = df_serializable[col].apply(
+                    lambda x: None if pd.isna(x) or x == 'NaT' or str(x).strip() == '' else str(x)
+                )
         
         # Convert to dict (which handles numpy types better) then to JSON
         transformed_data_dict = df_serializable.to_dict(orient='records')
