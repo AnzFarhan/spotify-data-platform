@@ -238,26 +238,34 @@ class SpotifyDataTransformer:
         return df_cleaned
     
     def normalize_timestamps(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Normalize timestamp formats"""
+        """Normalize timestamp formats and handle NaT properly"""
         logger.info("Normalizing timestamps...")
         
         if 'played_at' in df.columns:
-            # Convert to datetime
-            df['played_at'] = pd.to_datetime(df['played_at'], utc=True)
+            # Convert to datetime, coerce errors to NaT
+            df['played_at'] = pd.to_datetime(df['played_at'], utc=True, errors='coerce')
             
-            # Create additional time-based features
+            # Create additional time-based features (only for non-NaT values)
             df['played_date'] = df['played_at'].dt.date
             df['played_hour'] = df['played_at'].dt.hour
             df['played_day_of_week'] = df['played_at'].dt.day_name()
             df['played_month'] = df['played_at'].dt.month
         
+        # Handle added_at timestamp (from playlists)
+        if 'added_at' in df.columns:
+            df['added_at'] = pd.to_datetime(df['added_at'], utc=True, errors='coerce')
+        
         # Handle release dates
         if 'release_date' in df.columns:
-            # Spotify release dates come in different formats
+            # Spotify release dates come in different formats (YYYY, YYYY-MM, YYYY-MM-DD)
+            # Convert to datetime, coerce errors to NaT
             df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
             
-            # Extract year for analysis
+            # Extract year for analysis (only for non-NaT values)
             df['release_year'] = df['release_date'].dt.year
+            
+            # For date columns in PostgreSQL, we need proper dates not NaT strings
+            # NaT will be handled in the DAG serialization step
         
         return df
     
