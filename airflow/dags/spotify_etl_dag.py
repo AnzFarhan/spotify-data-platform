@@ -56,7 +56,7 @@ import os
 sys.path.append('/opt/airflow')
 sys.path.append('/opt/airflow/dags')
 sys.path.append('/opt/airflow/DE')
-sys.path.append('/opt/airflow/config')
+sys.path.append('/opt/airflow/project')  # For config module
 
 # Also try adding the workspace paths mounted in the container
 workspace_paths = [
@@ -291,7 +291,7 @@ def transform_data(**context):
     Task 4: Transform extracted data
     """
     try:
-        logger.info("🔄 Starting data transformation...")
+        logger.info(" Starting data transformation...")
         
         # Get extracted data from previous task
         extracted_data_json = context['task_instance'].xcom_pull(
@@ -315,27 +315,50 @@ def transform_data(**context):
         # Initialize transformer
         transformer = SpotifyDataTransformer()
         
-        # Transform the data
-        transformed_df = transformer.transform(df)
+        # Transform the data (returns tuple: df, quality_report)
+        transformed_df, quality_report = transformer.transform(df)
         
         if transformed_df.empty:
             logger.warning("Transformation resulted in empty dataset")
             context['task_instance'].xcom_push(key='transformation_status', value='empty_result')
             return "EMPTY_RESULT"
         
-        # Convert transformed DataFrame back to JSON
-        transformed_data_json = transformed_df.to_json(orient='records', date_format='iso')
+        # Log quality report
+        if quality_report:
+            logger.info(f"📊 Data Quality Report:")
+            logger.info(f"   Total records: {quality_report.get('total_records', 'N/A')}")
+            logger.info(f"   Valid records: {quality_report.get('valid_records', 'N/A')}")
+            logger.info(f"   Duplicate count: {quality_report.get('duplicate_count', 'N/A')}")
+        
+        # Convert DataFrame dtypes to Python native types to avoid numpy serialization issues
+        # Create a copy to avoid modifying the original
+        df_serializable = transformed_df.copy()
+        
+        # Convert all object columns to string to avoid numpy dtype issues
+        for col in df_serializable.select_dtypes(include=['object']).columns:
+            df_serializable[col] = df_serializable[col].astype(str)
+        
+        # Convert to dict (which handles numpy types better) then to JSON
+        transformed_data_dict = df_serializable.to_dict(orient='records')
+        import json
+        transformed_data_json = json.dumps(transformed_data_dict, default=str)
         
         logger.info(f"Transformation completed successfully!")
         logger.info(f"Input records: {len(df)}")
         logger.info(f"Output records: {len(transformed_df)}")
         logger.info(f"Features added: {len(transformed_df.columns) - len(df.columns)}")
         
-        # Store transformed data for loading task
+        # Convert quality_report to JSON-serializable format by converting to JSON string
+        # This avoids any numpy dtype issues completely
+        import json
+        quality_report_json = json.dumps(quality_report, default=str) if quality_report else "{}"
+        
+        # Store transformed data and quality report for loading task
         context['task_instance'].xcom_push(key='transformed_data', value=transformed_data_json)
         context['task_instance'].xcom_push(key='transformation_status', value='success')
         context['task_instance'].xcom_push(key='transformed_records', value=len(transformed_df))
         context['task_instance'].xcom_push(key='transformed_columns', value=len(transformed_df.columns))
+        context['task_instance'].xcom_push(key='quality_report', value=quality_report_json)
         
         return "SUCCESS"
         
