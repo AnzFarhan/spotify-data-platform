@@ -475,8 +475,22 @@ class SpotifyDatabaseLoader:
             DO UPDATE SET {update_str}
             """
             
-            # Execute batch insert
-            data_tuples = [tuple(row) for row in df.values]
+            # Execute batch insert with proper None handling
+            # Convert DataFrame rows to tuples, replacing string "NaT", "None", and empty strings with None
+            data_tuples = []
+            for row in df.values:
+                cleaned_row = []
+                for value in row:
+                    # Convert problematic string values to None (NULL in database)
+                    if value in ['NaT', 'None', 'nan', 'NaN', ''] or (isinstance(value, str) and value.strip() == ''):
+                        cleaned_row.append(None)
+                    # Handle pandas/numpy NaN and NaT
+                    elif pd.isna(value):
+                        cleaned_row.append(None)
+                    else:
+                        cleaned_row.append(value)
+                data_tuples.append(tuple(cleaned_row))
+            
             cursor.executemany(query, data_tuples)
             
             rows_affected = cursor.rowcount
